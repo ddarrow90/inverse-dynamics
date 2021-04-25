@@ -16,6 +16,13 @@
 %include the deg rotation in initrotaxis first to have the same effect
 %made attitude quaternion stuff
 %
+%4/20/21
+%fixing vertical vectors, indices/dimensions problems
+%
+%4/21/21
+%finished first iteration of code, set up the wrenches and solving for the
+%wrenches
+%
 %changes needed:
 %describe better the "base" position of the z axis in the SCS before adding
 %degs of freedom for the principal axes of inertia tensor
@@ -25,7 +32,7 @@
 %
 
 g = 9.81;
-thetainput = 0;
+thetainput = 60;
 
 %n is number of segments -(including the ground "segment")-
 %4/16/21 change: no longer using ground segment, since at this point i
@@ -168,12 +175,14 @@ end
 
 %n+1 wrenches, n distal ends + origin
 dwrenches = zeros(6,n+1);
-dwrenches(:,1) = [inweight;norm(cross(segvec(:,1),inweight))*(inweight-(dot(segvec(:,1),inweight)*segvec(:,1))/(norm(segvec(:,1)))^2)];
+dwrenches(:,1) = [inweight;norm(cross(segvec(:,1),inweight))*makevert(makeunit(inweight-(dot(segvec(:,1),inweight)*segvec(:,1))/(norm(segvec(:,1)))^2))];
 nothing = [[0,0,0];[0,0,0];[0,0,0]];
 id = [[1,0,0];[0,1,0];[0,0,1]];
 for i=1:n
     arr1 = vertcat(horzcat(m(i)*id, nothing),horzcat(m(i)*makeskewsym(com(i)*segvec(:,i)),icstens(:,:,i)));
     arr2 = vertcat(horzcat(id, nothing),horzcat(makeskewsym(segvec(:,i)),id));
     dwrenches(:,i+1) = mtimes(arr1,[0;0;-g;0;0;0])+mtimes(arr2,dwrenches(:,i));
+    %testing
+    disp(dwrenches(:,i));
 end
 disp(dwrenches(:,n+1));
