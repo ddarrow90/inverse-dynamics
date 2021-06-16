@@ -1,35 +1,6 @@
-%CHANGELOG
-%
-%4/16/21
-%this changelog was born
-%reversed order of some stuff to reflect order it should be solved in
-%removed ground segment
-%
-%4/17/21
-%changed quatify to take (angle, axis) where axis is now a vector instead of
-%its components, fixed it to halve angle (no need to divide by 2 before
-%inputting angle)
-%
-%4/18/21
-%fixed up some stuff related to rotating about DEG after getting the stuff
-%in positiion relative to other segments, realized I could just rotate
-%include the deg rotation in initrotaxis first to have the same effect
-%made attitude quaternion stuff
-%
-%4/20/21
-%fixing vertical vectors, indices/dimensions problems
-%
-%4/21/21
-%finished first iteration of code, set up the wrenches and solving for the
-%wrenches
-%
-%changes needed:
-%describe better the "base" position of the z axis in the SCS before adding
-%degs of freedom for the principal axes of inertia tensor
-%
-%for aqtoam, need to make it so that it automatically converts the input
-%quaternion to vertical to not confuse things with qv*transpost(qv)
-%
+%adds bicep
+%treats the bicep as a force with known input, we can play around with
+%values to see what force should minimize stress on each joint
 
 g = 9.81;
 thetainput = 60;
@@ -48,8 +19,29 @@ principax(:,2) = [4;2;1];
 scstens = zeros(3,3,n);
 icstens = zeros(3,3,n);
 
+%angles for the vertices adjacent to the endpoints of the muscles in the
+%triangle formed by the joint between endpts of muscles and said endpts,
+%first value is the "distal end" second is "proximal"
+%muscle index key:
+%1 = bicep
+musctheta = zeros(2,1);
+
+%locations of endpts of muscles
+%first value is the "distal end" second is "proximal"
+%third/fourth values are the segment numbers referred to by values 1 and 2,
+%respectively
+muscends = [0.9;1;1;2];
+
+%experimenting with this value, trying to figure out how the muscle force exerted
+%should be related to some directly inputed value (if the person decides
+%to flex/relax their arm), the length the muscle is being stretched (some
+%kind of tension), and the load on the muscle (since it can reduce/add
+%stress to some spots)
+muscf = 10;
+%syms muscf;
+
 %for only this model
-mdumb = 8;
+mdumb = 3;
 inweight = [0;0;mdumb*g];
 
 for i=1:n
@@ -122,6 +114,15 @@ thetaseg = zeros(n - 1);
 %thetasegs(2) = -(180 - acosd((norm([x,y,z])^2-d(2)^2-d(3)^2)/(-2*d(3)*d(2))));
 thetaseg(1) = LOC(leng(2),leng(1),norm(reach));
 
+%find musctheta (convert to for loop later), note that biarticular muscles
+%cant use this due to a) no triangle b) screwed up indices for angle and
+%segment stuff
+pmusctemp = (leng(muscends(3,1))*(1-muscends(1,1)));
+dmusctemp = (leng(muscends(4,1))*(muscends(2,1)));
+musclengtemp = sqrt(pmusctemp^2+dmusctemp^2-2*dmusctemp*pmusctemp*cosd(thetaseg(1)));
+musctheta(1,1) = LOC(pmusctemp, dmusctemp, musclengtemp);
+musctheta(2,1) = 180 - musctheta(1,1) - thetaseg(1);
+
 %{creating quaternions, calculating attitude matrices for each segment (which are for now static)%}
 %note that the initrot vector may change when there are more than 2
 %segments, since right now we have the all segments are planar and thus are
@@ -175,14 +176,57 @@ end
 
 %n+1 wrenches, n distal ends + origin
 dwrenches = zeros(6,n+1);
-dwrenches(:,1) = [inweight;norm(cross(segvec(:,1),inweight))*makevert(makeunit(inweight-(dot(segvec(:,1),inweight)*segvec(:,1))/(norm(segvec(:,1)))^2))];
+%dwrenches(:,1) = [inweight;makevert(cross(segvec(:,1),inweight))];
+%interpreted equation wrong, the input weight does not also become a
+%moment, wrench1 moment would be something like actually an input torque
+%directly twisting the hand
+dwrenches(:,1) = [inweight;makevert([0,0,0])];
 nothing = [[0,0,0];[0,0,0];[0,0,0]];
 id = [[1,0,0];[0,1,0];[0,0,1]];
+muscwren = zeros(6,n);
+%this iteration adds a muscle so we add a new wrench, need to find an
+%easy way to keep track of which muscles are relevant to which segments
+%since their index doesnt say much
+muscvecs = zeros(3,1);
+muscvecs(:,1) = ((1-muscends(1,1))*segvec(:,muscends(3,1))+muscends(2,1)*segvec(muscends(4,1)))*muscf;
+muscwren(:,1) = vertcat(muscvecs(:,1),cross(muscvecs(:,1),segvec(:,1)*(1-muscends(1,1))));
+muscwren(:,2) = vertcat(-muscvecs(:,1),cross(-muscvecs(:,1),segvec(:,2)*(1-muscends(2,1))));
 for i=1:n
+    %instead of making vectors beforehand for the muscles' orientation, we
+    %can just add up the segment vectors multiplied by the appropriate
+    %ratios, then multiply by the magnitude of the force (which can be
+    %input after the results of the final wrench are found symbolically)
     arr1 = vertcat(horzcat(m(i)*id, nothing),horzcat(m(i)*makeskewsym(com(i)*segvec(:,i)),icstens(:,:,i)));
     arr2 = vertcat(horzcat(id, nothing),horzcat(makeskewsym(segvec(:,i)),id));
-    dwrenches(:,i+1) = mtimes(arr1,[0;0;-g;0;0;0])+mtimes(arr2,dwrenches(:,i));
-    %testing
-    disp(dwrenches(:,i));
+    dwrenches(:,i+1) = arr1*[0;0;-g;0;0;0]+arr2*dwrenches(:,i)+muscwren(:,i);
 end
-disp(dwrenches(:,n+1));
+
+%%%%%%%%%%%%%
+%OUTPUT AREA%
+%%%%%%%%%%%%%
+
+for i=1:n+1
+    disp(dwrenches(1:6,i));
+end
+%disp(dwrenches(:,n+1));
+
+%graphing (static) 
+for i=1:n+1
+    %color key:
+    %—red: forces
+    %-blue: moments
+    %-green: segments
+    %trying out scaling down the wrenches by a factor of 10 to fit them
+    %better, makes the segments easier to see
+    quiver3(distal(1,i),distal(2,i),distal(3,i),dwrenches(1,i)/10,dwrenches(2,i)/10,dwrenches(3,i)/10,'r');
+    quiver3(distal(1,i),distal(2,i),distal(3,i),dwrenches(4,i)/10,dwrenches(5,i)/10,dwrenches(6,i)/10,'b');
+    hold on
+    %plotting each of the arm segments as well
+    if(i < n+1)
+        t =  0:1/100:1;
+        plot3(distal(1,i)-distal(1,i)*t+distal(1,i+1)*t,distal(2,i)-distal(2,i)*t+distal(2,i+1)*t,distal(3,i)-distal(3,i)*t+distal(3,i+1)*t,'g')
+    end
+    %axis([0 10 0 10 0 100])
+end
+
+%attempt at graphing with animation, iterating along thetainput

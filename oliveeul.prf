@@ -1,0 +1,39 @@
+# To enable this color scheme in MATLAB use schemer_import, available at:
+#     https://github.com/scottclowe/matlab-schemer
+#     https://www.mathworks.com/matlabcentral/fileexchange/53862-matlab-schemer
+ColorsUseSystem=Bfalse
+ColorsUseMLintAutoFixBackground=Btrue
+Editor.VariableHighlighting.Automatic=Btrue
+Editor.NonlocalVariableHighlighting=Btrue
+EditorCodepadHighVisible=Btrue
+EditorCodeBlockDividers=Btrue
+Editorhighlight-caret-row-boolean=Btrue
+EditorRightTextLineVisible=Btrue
+EditorRightTextLimitLineWidth=I4                             # slightly wider
+ColorsText=C-1118482                                         # white
+ColorsBackground=C-14474461                                  # carbon
+Colors_M_Keywords=C-448910                                   # ambra
+Colors_M_Comments=C-5273660                                  # asfalto
+Colors_M_Strings=C-1647756                                   # lime
+Colors_M_UnterminatedStrings=C-202417                        # yellow
+Colors_M_SystemCommands=C-16725605                           # alga
+Colors_M_Errors=C-53398                                      # red
+Colors_HTML_HTMLLinks=C-6385153                              # violet
+Colors_M_Warnings=C-26368                                    # ambra
+ColorsMLintAutoFixBackground=C-11184811                      # 
+Editor.VariableHighlighting.Color=C-4495617                  # purple
+Editor.NonlocalVariableHighlighting.TextColor=C-16725760     # green
+Editorhighlight-lines=C-15132391                             # 
+Editorhighlight-caret-row-boolean-color=C-16777216           # black
+EditorRightTextLimitLineColor=C-13948117                     # 
+# XML/HTML
+Editor.Language.XML.Color.pi-content=C-6425200
+Editor.Language.XML.Color.operator=C-5075968
+Editor.Language.XML.Color.error=C-65536
+Editor.Language.XML.Color.tag=C-16776961
+Editor.Language.XML.Color.attribute=C-5111808
+Editor.Language.XML.Color.value=C-6283024
+Editor.Language.XML.Color.comment=C-14513374
+Editor.Language.XML.Color.doctype=C-16777092
+Editor.Language.XML.Color.ref=C-5111808
+Editor.Language.XML.Color.cdata-section=C-8625664
