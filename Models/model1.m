@@ -31,7 +31,7 @@
 %quaternion to vertical to not confuse things with qv*transpost(qv)
 %
 
-g = 9.81;
+g = -9.81;
 thetainput = 60;
 
 %n is number of segments -(including the ground "segment")-
@@ -185,7 +185,7 @@ id = [[1,0,0];[0,1,0];[0,0,1]];
 for i=1:n
     arr1 = vertcat(horzcat(m(i)*id, nothing),horzcat(m(i)*makeskewsym(com(i)*segvec(:,i)),icstens(:,:,i)));
     arr2 = vertcat(horzcat(id, nothing),horzcat(makeskewsym(segvec(:,i)),id));
-    dwrenches(:,i+1) = mtimes(arr1,[0;0;-g;0;0;0])+mtimes(arr2,dwrenches(:,i));
+    dwrenches(:,i+1) = mtimes(arr1,[0;0;g;0;0;0])+mtimes(arr2,dwrenches(:,i));
     %testing
     disp(dwrenches(:,i));
 end
@@ -196,11 +196,14 @@ for i=1:n+1
     %color key:
     %—red: forces
     %-blue: moments
-    quiver3(distal(1,i),distal(2,i),distal(3,i),dwrenches(1,i),dwrenches(2,i),dwrenches(3,i),'r');
-    %trying out scaling down the moments by a factor of 5 to fit them
-    %better
-    quiver3(distal(1,i),distal(2,i),distal(3,i),dwrenches(4,i)/5,dwrenches(5,i)/5,dwrenches(6,i)/5,'b');
+    %-green: segments
+    %trying out scaling down the wrenches by a factor of 10 to fit them
+    %better, makes the segments easier to see
+    quiver3(distal(1,i),distal(2,i),distal(3,i),dwrenches(1,i)/10,dwrenches(2,i)/10,dwrenches(3,i)/10,'r');
     hold on
+    %axis equal
+    quiver3(distal(1,i),distal(2,i),distal(3,i),dwrenches(4,i)/10,dwrenches(5,i)/10,dwrenches(6,i)/10,'b');
+    
     %plotting each of the arm segments as well
     if(i < n+1)
         t =  0:1/100:1;
@@ -209,5 +212,5 @@ for i=1:n+1
     %axis([0 10 0 10 0 100])
 end
 
+
 %attempt at graphing with animation, iterating along thetainput
-for 

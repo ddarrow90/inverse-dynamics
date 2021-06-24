@@ -12,6 +12,7 @@ thetainput = 60;
 %maybe change later so that we input the values (mass, theta, tensor
 %princip axis values) from command prompt
 n = 2;
+muscn = 2;
 m = zeros(n);
 m = [2; 4];
 principax = zeros(3, n);
@@ -25,23 +26,23 @@ icstens = zeros(3,3,n);
 %first value is the "distal end" second is "proximal"
 %muscle index key:
 %1 = bicep
-musctheta = zeros(2,1);
+%2 = tricep
+%musctheta = zeros(2,2);
 
 %locations of endpts of muscles
 %first value is the "distal end" second is "proximal"
 %third/fourth values are the segment numbers referred to by values 1 and 2,
 %respectively
-muscends = [0.9;1;1;2];
+muscends = zeros(4,muscn);
+muscends = [[0.9;1;1;2],[1.1;1;1;2]];
 
 %experimenting with this value, trying to figure out how the muscle force exerted
 %should be related to some directly inputed value (if the person decides
 %to flex/relax their arm), the length the muscle is being stretched (some
 %kind of tension), and the load on the muscle (since it can reduce/add
 %stress to some spots)
-muscf = [0];
-%syms muscf;
+muscf = [0, 0];
 
-%input force (weight in this model, so it's downwards by default)
 mdumb = 3;
 inweight = [0;0;mdumb*g];
 
@@ -49,24 +50,10 @@ for i=1:n
     scstens(:,:,i) = [[principax(1,i);0;0],[0;principax(2,i);0],[0;0;principax(3,i)]];
 end
 
-%- treating the dumbbell (considered a pt mass for now) a.k.a. segment 0 as
-%- having 0 length and 0 distance between 
-%- CoM and P_0, later maybe change this to include the wrist as another joint and
-%- hand as segment, which would be more accurate with the assumption of 0 length for dumbbell
-%Note: D(i) is location of D_i, NOT the vector describing segment i
-%- We assume that P(n)=0,0,0
-% P(n), which we lose when changing to distal points, becomes the origin
-% (unless we need to move it, in which case some new stuff needs to be
-% added)
-
 com = [0.4, 0.536];
 leng = [2, 1.62];
 
-%we let the last distal vector be the origin, do not change it
-
 distal = zeros(3, n+1);
-
-%{defining the location of dumbbell (x,y,z)%}
 
 x = 1;
 y = 1.1;
@@ -76,37 +63,12 @@ reach = [x,y,z];
 
 distal([1,2,3],1) = reach;
 
-%{checking triangle ineq in case I'm an idiot with test cases, prints error and ends early%}
-
 if(norm(reach)>leng(1)+leng(2))
     disp('Get a longer arm')
     return
 end
 
-%quaternion corresponding to rotation of angle theta about <x,y,z>
-%using degrees here, the default 0 degree rotation position will have x,y
-%coordinates of all proximal pts collinear and the elbow (P1) below line
-%000 to xyz, essentially completely vertical
-%quatify takes in angle and axis, returns corresponding quaternion
-%describing the rotation
-
-%DEG = [cos(thetainput), sin(thetainput)*[x, y, z]/norm([x, y, z])]
 DEG = quatify(thetainput, reach);
-
-%law of cosines for angles to get relevant quaternions, to set up the
-%vectors corresponding to the segments we use the quaternion with the
-%calculated angles and axis set to the cross product of 001 and xyz
-
-%LOC.m takes three side lengths, the first of which is the side opposite
-%the desired angle, outputs in degrees
-
-%thetaseg(i) is the angle between segment i-1 and i-2, where segment 0 is
-%considered the line between the shoulder and distal end of arm (at least
-%for the 0 length dumbbell case)
-
-%Note (4/18/21): can't solve for thetas in higher cases like this, have to
-%leave it in terms of other variables since there will be too many degrees
-%of freedom
 
 thetaseg = zeros(n - 1);
 %acosd((-norm([x,y,z])^2-d(2)^2+d(3)^2)/(-2*norm([x,y,z])*d(2)));
@@ -118,11 +80,28 @@ thetaseg(1) = LOC(leng(2),leng(1),norm(reach));
 %find musctheta (convert to for loop later), note that biarticular muscles
 %cant use this due to a) no triangle b) screwed up indices for angle and
 %segment stuff
-pmusctemp = (leng(muscends(3,1))*(1-muscends(1,1)));
-dmusctemp = (leng(muscends(4,1))*(muscends(2,1)));
-musclengtemp = sqrt(pmusctemp^2+dmusctemp^2-2*dmusctemp*pmusctemp*cosd(thetaseg(1)));
-musctheta(1,1) = LOC(pmusctemp, dmusctemp, musclengtemp);
-musctheta(2,1) = 180 - musctheta(1,1) - thetaseg(1);
+%referenced from model2b, DELETE LATER%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%pmusctemp = (leng(muscends(3,1))*(1-muscends(1,1)));
+%dmusctemp = (leng(muscends(4,1))*(muscends(2,1)));
+%musclengtemp = sqrt(pmusctemp^2+dmusctemp^2-2*dmusctemp*pmusctemp*cosd(thetaseg(1)));
+%musctheta(1,1) = LOC(pmusctemp, dmusctemp, musclengtemp);
+%musctheta(2,1) = 180 - musctheta(1,1) - thetaseg(1);
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%the nice thing is that for when 1-muscends becomes negative, like in the
+%case of the tricep, this actually covers for the sign change in thetaseg,
+%since it becomes cosine of 180-thetaseg which is just -cos(thetaseg(1)) as
+%made 1-muscends
+%for i=1:2
+%    pmusctemp = (leng(muscends(3,i))*(1-muscends(1,i)));
+%    dmusctemp = (leng(muscends(4,i))*(muscends(2,i)));
+%musclengtemp = sqrt(pmusctemp^2+dmusctemp^2-2*dmusctemp*pmusctemp*cosd(thetaseg(1)));
+%    musctheta(1,1) = LOC(pmusctemp, dmusctemp, musclengtemp)*(pmusctemp/norm(pmusctemp))*(dmusctemp/norm(dmusctemp));
+%    
+%end
+
+%^commented out that because I realized I'm an idiot---I don't even use
+%musctheta anywhere
 
 %{creating quaternions, calculating attitude matrices for each segment (which are for now static)%}
 %note that the initrot vector may change when there are more than 2
@@ -189,9 +168,11 @@ muscwren = zeros(6,n);
 %easy way to keep track of which muscles are relevant to which segments
 %since their index doesnt say much
 
-muscvecs = zeros(3,1);
-muscvecs(:,1) = makeunit((1-muscends(1,1))*segvec(:,muscends(3,1))+muscends(2,1)*segvec(:,muscends(4,1)));
-
+muscvecs = zeros(3,muscn);
+%setting direction of muscvecs first, making unit norm 1
+for i=1:muscn
+    muscvecs(:,i) = makeunit((1-muscends(1,i))*segvec(:,muscends(3,i))+muscends(2,i)*segvec(:,muscends(4,i)));
+end
 for i=1:n
     %instead of making vectors beforehand for the muscles' orientation, we
     %can just add up the segment vectors multiplied by the appropriate
@@ -201,10 +182,25 @@ for i=1:n
     arr2 = vertcat(horzcat(id, nothing),horzcat(makeskewsym(segvec(:,i)),id));
     dwrenches(:,i+1) = arr1*[0;0;g;0;0;0]+arr2*dwrenches(:,i);
 end
+%moment in the direction of the muscles
+muscf = dot(cross(segvec(:,2),segvec(:,1)),dwrenches(4:6,2))/norm(dwrenches(4:6,2));
+if(muscf/norm(muscf) == 1)
+    muscvecs(:,1) = muscvecs(:,1)*muscf;
+    muscvecs(:,2) = muscvecs(:,2)*0;
+else
+    muscvecs(:,1) = muscvecs(:,1)*0;
+    muscvecs(:,2) = muscvecs(:,2)*muscf;
+end
 
-muscf = max(dot(dwrenches(1:3,2),muscvecs(:,1)),0);
-muscvecs(:,1) = muscvecs(:,1)*muscf;
-%dwrenches(1:3,2) = dwrenches(1:3,2) - muscvecs(:,1);
+%note that this only works for non-biarticular muscles that act between
+%segs 1,2 (i.e. the elbow is between them)
+%index of muscwren refers to the segment index it acts on
+for i = 1:n
+    for j = 1:muscn
+        muscwren(:,i) = muscwren(:,i) + vertcat(muscvecs(:,j),cross(muscvecs(:,j),segvec(:,i)*(1-muscends(1,j))));
+    end
+end
+    
 muscwren(:,1) = vertcat(muscvecs(:,1),cross(muscvecs(:,1),segvec(:,1)*(1-muscends(1,1))));
 muscwren(:,2) = vertcat(-muscvecs(:,1),cross(-muscvecs(:,1),segvec(:,2)*(1-muscends(2,1))));
 
@@ -223,8 +219,14 @@ for i=1:n+1
 end
 %disp(dwrenches(:,n+1));
 
-disp("bicep load:");
+disp("muscle load:");
 disp(muscf);
+disp("muscle used:");
+if(muscf/norm(muscf) == 1)
+    disp("bicep");
+else
+    disp("tricep");
+end
 
 %graphing (static) 
 quiver3(0,0,0,muscvecs(1,1)/10,muscvecs(2,1)/10,muscvecs(3,1)/10,'r');

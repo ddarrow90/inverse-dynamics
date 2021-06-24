@@ -2,7 +2,7 @@
 %treats the bicep as a force with known input, we can play around with
 %values to see what force should minimize stress on each joint
 
-g = 9.81;
+g = -9.81;
 thetainput = 60;
 
 %n is number of segments -(including the ground "segment")-
@@ -188,7 +188,7 @@ muscwren = zeros(6,n);
 %easy way to keep track of which muscles are relevant to which segments
 %since their index doesnt say much
 muscvecs = zeros(3,1);
-muscvecs(:,1) = ((1-muscends(1,1))*segvec(:,muscends(3,1))+muscends(2,1)*segvec(muscends(4,1)))*muscf;
+muscvecs(:,1) = makeunit((1-muscends(1,1))*segvec(:,muscends(3,1))+muscends(2,1)*segvec(:,muscends(4,1)))*muscf;
 muscwren(:,1) = vertcat(muscvecs(:,1),cross(muscvecs(:,1),segvec(:,1)*(1-muscends(1,1))));
 muscwren(:,2) = vertcat(-muscvecs(:,1),cross(-muscvecs(:,1),segvec(:,2)*(1-muscends(2,1))));
 for i=1:n
@@ -198,7 +198,7 @@ for i=1:n
     %input after the results of the final wrench are found symbolically)
     arr1 = vertcat(horzcat(m(i)*id, nothing),horzcat(m(i)*makeskewsym(com(i)*segvec(:,i)),icstens(:,:,i)));
     arr2 = vertcat(horzcat(id, nothing),horzcat(makeskewsym(segvec(:,i)),id));
-    dwrenches(:,i+1) = arr1*[0;0;-g;0;0;0]+arr2*dwrenches(:,i)+muscwren(:,i);
+    dwrenches(:,i+1) = arr1*[0;0;g;0;0;0]+arr2*dwrenches(:,i)+muscwren(:,i);
 end
 
 %%%%%%%%%%%%%
@@ -211,6 +211,9 @@ end
 %disp(dwrenches(:,n+1));
 
 %graphing (static) 
+quiver3(0,0,0,muscvecs(1,1)/10,muscvecs(2,1)/10,muscvecs(3,1)/10,'r');
+hold on
+%quiver3(0,0,0,-muscvecs(1,1)/10,-muscvecs(2,1)/10,-muscvecs(3,1)/10,'r');
 for i=1:n+1
     %color key:
     %—red: forces
@@ -219,8 +222,9 @@ for i=1:n+1
     %trying out scaling down the wrenches by a factor of 10 to fit them
     %better, makes the segments easier to see
     quiver3(distal(1,i),distal(2,i),distal(3,i),dwrenches(1,i)/10,dwrenches(2,i)/10,dwrenches(3,i)/10,'r');
+    %axis equal
     quiver3(distal(1,i),distal(2,i),distal(3,i),dwrenches(4,i)/10,dwrenches(5,i)/10,dwrenches(6,i)/10,'b');
-    hold on
+    
     %plotting each of the arm segments as well
     if(i < n+1)
         t =  0:1/100:1;
@@ -228,5 +232,7 @@ for i=1:n+1
     end
     %axis([0 10 0 10 0 100])
 end
+
+
 
 %attempt at graphing with animation, iterating along thetainput
