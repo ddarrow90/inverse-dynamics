@@ -1,7 +1,5 @@
-%adds bicep
-%treats the bicep as a force with unknown input, first calculates the
-%forces/moments on the arm without musculature then uses bicep to take as
-%much of the strain at the elbow as possible
+%adds tricep
+%balances moment
 
 g = -9.81;
 thetainput = 60;
@@ -41,7 +39,7 @@ muscends = [[0.9;1;1;2],[1.1;1;1;2]];
 %to flex/relax their arm), the length the muscle is being stretched (some
 %kind of tension), and the load on the muscle (since it can reduce/add
 %stress to some spots)
-muscf = [0, 0];
+muscmag = zeros(muscn);
 
 mdumb = 3;
 inweight = [0;0;mdumb*g];
@@ -163,7 +161,7 @@ dwrenches = zeros(6,n+1);
 dwrenches(:,1) = [inweight;makevert([0,0,0])];
 nothing = [[0,0,0];[0,0,0];[0,0,0]];
 id = [[1,0,0];[0,1,0];[0,0,1]];
-muscwren = zeros(6,n);
+muscwren = zeros(6,n+1);
 %this iteration adds a muscle so we add a new wrench, need to find an
 %easy way to keep track of which muscles are relevant to which segments
 %since their index doesnt say much
@@ -173,6 +171,7 @@ muscvecs = zeros(3,muscn);
 for i=1:muscn
     muscvecs(:,i) = makeunit((1-muscends(1,i))*segvec(:,muscends(3,i))+muscends(2,i)*segvec(:,muscends(4,i)));
 end
+
 for i=1:n
     %instead of making vectors beforehand for the muscles' orientation, we
     %can just add up the segment vectors multiplied by the appropriate
@@ -183,31 +182,28 @@ for i=1:n
     dwrenches(:,i+1) = arr1*[0;0;g;0;0;0]+arr2*dwrenches(:,i);
 end
 %moment in the direction of the muscles
-muscf = dot(cross(segvec(:,2),segvec(:,1)),dwrenches(4:6,2))/norm(dwrenches(4:6,2));
-if(muscf/norm(muscf) == 1)
-    muscvecs(:,1) = muscvecs(:,1)*muscf;
-    muscvecs(:,2) = muscvecs(:,2)*0;
+muscf = -proj(dwrenches(4:6,2),cross(muscvecs(:,2),muscvecs(:,1)));
+%checks which way the muscle moment points---if in the same direction as cross prod then bicep 
+if(dot(muscf,cross(muscvecs(:,2),muscvecs(:,1))) > 0)
+    muscmag(2) = norm(muscf)/norm(cross(segvec(:,muscends(3,2))*(1-muscends(1,2)),muscvecs(:,2)));
 else
-    muscvecs(:,1) = muscvecs(:,1)*0;
-    muscvecs(:,2) = muscvecs(:,2)*muscf;
+    muscmag(1) = norm(muscf)/norm(cross(segvec(:,muscends(3,1))*(1-muscends(1,1)),muscvecs(:,1)));
 end
 
 %note that this only works for non-biarticular muscles that act between
 %segs 1,2 (i.e. the elbow is between them)
 %index of muscwren refers to the segment index it acts on
-for i = 1:n
-    for j = 1:muscn
-        muscwren(:,i) = muscwren(:,i) + vertcat(muscvecs(:,j),cross(muscvecs(:,j),segvec(:,i)*(1-muscends(1,j))));
-    end
+for j = 1:muscn
+    muscwren(:,muscends(3,j)+1) = muscwren(:,muscends(3,j)+1) + vertcat(muscvecs(:,j)*muscmag(j),cross(segvec(:,muscends(3,j))*(1-muscends(1,j)),muscvecs(:,j)*muscmag(j)));
 end
     
-muscwren(:,1) = vertcat(muscvecs(:,1),cross(muscvecs(:,1),segvec(:,1)*(1-muscends(1,1))));
-muscwren(:,2) = vertcat(-muscvecs(:,1),cross(-muscvecs(:,1),segvec(:,2)*(1-muscends(2,1))));
+%muscwren(:,1) = vertcat(muscvecs(:,1),cross(muscvecs(:,1),segvec(:,1)*(1-muscends(1,1))));
+%muscwren(:,2) = vertcat(-muscvecs(:,1),cross(-muscvecs(:,1),segvec(:,2)*(1-muscends(2,1))));
 
 for i=1:n
     arr1 = vertcat(horzcat(m(i)*id, nothing),horzcat(m(i)*makeskewsym(com(i)*segvec(:,i)),icstens(:,:,i)));
     arr2 = vertcat(horzcat(id, nothing),horzcat(makeskewsym(segvec(:,i)),id));
-    dwrenches(:,i+1) = arr1*[0;0;-g;0;0;0]+arr2*dwrenches(:,i)+muscwren(:,i);
+    dwrenches(:,i+1) = arr1*[0;0;g;0;0;0]+arr2*dwrenches(:,i)+muscwren(:,i+1);
 end
 %%%%%%%%%%%%%
 %OUTPUT AREA%
@@ -219,17 +215,19 @@ for i=1:n+1
 end
 %disp(dwrenches(:,n+1));
 
-disp("muscle load:");
+disp("muscle load vector:");
 disp(muscf);
+disp("muscle load:");
+disp(norm(muscf));
 disp("muscle used:");
-if(muscf/norm(muscf) == 1)
+if(dot(muscf,cross(muscvecs(:,2),muscvecs(:,1))) > 0)
     disp("bicep");
 else
     disp("tricep");
 end
 
 %graphing (static) 
-quiver3(0,0,0,muscvecs(1,1)/10,muscvecs(2,1)/10,muscvecs(3,1)/10,'r');
+quiver3(0,0,0,0,0,0,'c');
 hold on
 %quiver3(0,0,0,-muscvecs(1,1)/10,-muscvecs(2,1)/10,-muscvecs(3,1)/10,'r');
 for i=1:n+1
@@ -239,9 +237,9 @@ for i=1:n+1
     %-green: segments
     %trying out scaling down the wrenches by a factor of 10 to fit them
     %better, makes the segments easier to see
-    quiver3(distal(1,i),distal(2,i),distal(3,i),dwrenches(1,i)/10,dwrenches(2,i)/10,dwrenches(3,i)/10,'r');
+    quiver3(distal(1,i),distal(2,i),distal(3,i),dwrenches(1,i)/40,dwrenches(2,i)/40,dwrenches(3,i)/40,'r');
     %axis equal
-    quiver3(distal(1,i),distal(2,i),distal(3,i),dwrenches(4,i)/10,dwrenches(5,i)/10,dwrenches(6,i)/10,'b');
+    quiver3(distal(1,i),distal(2,i),distal(3,i),dwrenches(4,i)/20,dwrenches(5,i)/20,dwrenches(6,i)/20,'b');
     
     %plotting each of the arm segments as well
     if(i < n+1)

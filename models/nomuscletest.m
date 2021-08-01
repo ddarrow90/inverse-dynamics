@@ -1,7 +1,5 @@
-%adds bicep
-%treats the bicep as a force with unknown input, first calculates the
-%forces/moments on the arm without musculature then uses bicep to take as
-%much of the strain at the elbow as possible
+%adds tricep
+%balances moment
 
 g = -9.81;
 thetainput = 60;
@@ -12,7 +10,6 @@ thetainput = 60;
 %maybe change later so that we input the values (mass, theta, tensor
 %princip axis values) from command prompt
 n = 2;
-muscn = 2;
 m = zeros(n);
 m = [2; 4];
 principax = zeros(3, n);
@@ -33,15 +30,11 @@ icstens = zeros(3,3,n);
 %first value is the "distal end" second is "proximal"
 %third/fourth values are the segment numbers referred to by values 1 and 2,
 %respectively
-muscends = zeros(4,muscn);
-muscends = [[0.9;1;1;2],[1.1;1;1;2]];
-
 %experimenting with this value, trying to figure out how the muscle force exerted
 %should be related to some directly inputed value (if the person decides
 %to flex/relax their arm), the length the muscle is being stretched (some
 %kind of tension), and the load on the muscle (since it can reduce/add
 %stress to some spots)
-muscf = [0, 0];
 
 mdumb = 3;
 inweight = [0;0;mdumb*g];
@@ -163,16 +156,9 @@ dwrenches = zeros(6,n+1);
 dwrenches(:,1) = [inweight;makevert([0,0,0])];
 nothing = [[0,0,0];[0,0,0];[0,0,0]];
 id = [[1,0,0];[0,1,0];[0,0,1]];
-muscwren = zeros(6,n);
 %this iteration adds a muscle so we add a new wrench, need to find an
 %easy way to keep track of which muscles are relevant to which segments
 %since their index doesnt say much
-
-muscvecs = zeros(3,muscn);
-%setting direction of muscvecs first, making unit norm 1
-for i=1:muscn
-    muscvecs(:,i) = makeunit((1-muscends(1,i))*segvec(:,muscends(3,i))+muscends(2,i)*segvec(:,muscends(4,i)));
-end
 for i=1:n
     %instead of making vectors beforehand for the muscles' orientation, we
     %can just add up the segment vectors multiplied by the appropriate
@@ -182,33 +168,7 @@ for i=1:n
     arr2 = vertcat(horzcat(id, nothing),horzcat(makeskewsym(segvec(:,i)),id));
     dwrenches(:,i+1) = arr1*[0;0;g;0;0;0]+arr2*dwrenches(:,i);
 end
-%moment in the direction of the muscles
-muscf = dot(cross(segvec(:,2),segvec(:,1)),dwrenches(4:6,2))/norm(dwrenches(4:6,2));
-if(muscf/norm(muscf) == 1)
-    muscvecs(:,1) = muscvecs(:,1)*muscf;
-    muscvecs(:,2) = muscvecs(:,2)*0;
-else
-    muscvecs(:,1) = muscvecs(:,1)*0;
-    muscvecs(:,2) = muscvecs(:,2)*muscf;
-end
 
-%note that this only works for non-biarticular muscles that act between
-%segs 1,2 (i.e. the elbow is between them)
-%index of muscwren refers to the segment index it acts on
-for i = 1:n
-    for j = 1:muscn
-        muscwren(:,i) = muscwren(:,i) + vertcat(muscvecs(:,j),cross(muscvecs(:,j),segvec(:,i)*(1-muscends(1,j))));
-    end
-end
-    
-muscwren(:,1) = vertcat(muscvecs(:,1),cross(muscvecs(:,1),segvec(:,1)*(1-muscends(1,1))));
-muscwren(:,2) = vertcat(-muscvecs(:,1),cross(-muscvecs(:,1),segvec(:,2)*(1-muscends(2,1))));
-
-for i=1:n
-    arr1 = vertcat(horzcat(m(i)*id, nothing),horzcat(m(i)*makeskewsym(com(i)*segvec(:,i)),icstens(:,:,i)));
-    arr2 = vertcat(horzcat(id, nothing),horzcat(makeskewsym(segvec(:,i)),id));
-    dwrenches(:,i+1) = arr1*[0;0;-g;0;0;0]+arr2*dwrenches(:,i)+muscwren(:,i);
-end
 %%%%%%%%%%%%%
 %OUTPUT AREA%
 %%%%%%%%%%%%%
@@ -218,17 +178,8 @@ for i=1:n+1
     disp(dwrenches(1:6,i));
 end
 %disp(dwrenches(:,n+1));
-
-disp("muscle load:");
-disp(muscf);
-disp("muscle used:");
-if(muscf/norm(muscf) == 1)
-    dis
-
-%graphing (static) 
-quiver3(0,0,0,muscvecs(1,1)/10,muscvecs(2,1)/10,muscvecs(3,1)/10,'r');
+quiver3(0,0,0,1,1,1,'w');
 hold on
-%quiver3(0,0,0,-muscvecs(1,1)/10,-muscvecs(2,1)/10,-muscvecs(3,1)/10,'r');
 for i=1:n+1
     %color key:
     %—red: forces
