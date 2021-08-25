@@ -1,6 +1,5 @@
 g = -9.81;
 thetainput = 60;
-n = 3;
 
 %hand orientation inputs (unit)
 handx = [1;0;0];
